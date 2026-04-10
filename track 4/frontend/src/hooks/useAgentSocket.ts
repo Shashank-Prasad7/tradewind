@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import type { AgentEvent, VesselState } from '../types'
+import type { AgentEvent, FleetSnapshotEvent, VesselState } from '../types'
 
 export type SocketStatus = 'connecting' | 'connected' | 'disconnected' | 'reconnecting'
 
@@ -49,23 +49,43 @@ export function useAgentSocket(): UseAgentSocketReturn {
           }
         }
 
-        // Update vessel map from heartbeat (heartbeat carries fleet summary)
-        // Full vessel positions come from simulator — update on every event that has position data
-        if (event.type === 'observation' && event.data?.position) {
-          setVessels(prev => ({
-            ...prev,
-            [event.shipment_id]: {
-              shipment_id: event.shipment_id,
-              vessel_name: event.vessel_name,
-              position: event.data.position,
-              next_port: event.data.next_port,
-              current_port: event.data.current_port,
-              cargo_type: event.data.cargo_type,
-              risk_level: event.severity === 'critical' ? 'critical'
-                : event.severity === 'warning' ? 'warning' : 'nominal',
-              eta_original: event.data.eta_original,
-            },
-          }))
+        // Fleet snapshot: update map positions, do NOT push to log panel
+        if (event.type === 'fleet_snapshot') {
+          const snap = event as FleetSnapshotEvent
+          setVessels(
+            Object.fromEntries(
+              snap.vessels.map(v => [
+                v.shipment_id,
+                {
+                  shipment_id: v.shipment_id,
+                  vessel_name: v.vessel_name,
+                  position: v.position,
+                  next_port: v.next_port,
+                  current_port: v.current_port,
+                  cargo_type: v.cargo_type,
+                  risk_level: v.risk_level as VesselState['risk_level'],
+                  eta_original: '',
+                },
+              ])
+            )
+          )
+          return  // don't add to event log
+        }
+
+        // Observation events also update vessel risk level on the map
+        if (event.type === 'observation') {
+          setVessels(prev => {
+            const existing = prev[event.shipment_id]
+            if (!existing) return prev
+            return {
+              ...prev,
+              [event.shipment_id]: {
+                ...existing,
+                risk_level: event.severity === 'critical' ? 'critical'
+                  : event.severity === 'warning' ? 'warning' : 'nominal',
+              },
+            }
+          })
         }
 
         setEvents(prev => {

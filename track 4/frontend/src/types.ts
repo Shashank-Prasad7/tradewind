@@ -10,6 +10,7 @@ export type EventType =
   | 'heartbeat'
   | 'counterfactual'
   | 'system'
+  | 'fleet_snapshot'
 
 export interface BaseEvent {
   id: string
@@ -143,6 +144,23 @@ export interface SystemEvent extends BaseEvent {
   message: string
 }
 
+// ── Fleet snapshot (emitted every 3s by simulator) ───────────────────────────
+
+export interface VesselSnapshot {
+  shipment_id: string
+  vessel_name: string
+  position: ShipmentPosition
+  risk_level: 'nominal' | 'warning' | 'critical'
+  cargo_type: string
+  next_port: string
+  current_port?: string
+}
+
+export interface FleetSnapshotEvent extends BaseEvent {
+  type: 'fleet_snapshot'
+  vessels: VesselSnapshot[]
+}
+
 // ── Union ─────────────────────────────────────────────────────────────────────
 
 export type AgentEvent =
@@ -154,8 +172,9 @@ export type AgentEvent =
   | HeartbeatEvent
   | CounterfactualEvent
   | SystemEvent
+  | FleetSnapshotEvent
 
-// ── Vessel state (from simulator, for map) ────────────────────────────────────
+// ── Vessel state (for map) ────────────────────────────────────────────────────
 
 export interface VesselState {
   shipment_id: string

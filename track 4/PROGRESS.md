@@ -29,12 +29,30 @@
 
 ---
 
-## H2–H4 · Data layer + Map · ⏳ Next
+## H2–H4 · Data layer + Map ✅
 
-Tasks:
-- BE: Full simulator background loop (vessel positions move every 3s)
-- FE: react-leaflet MapView with 11 vessel markers
-- FS: Connect map vessel positions to WebSocket events
+### Backend
+- `simulator.py` — background loop moves all 11 vessels every 3s toward next port
+- `simulator.py` — broadcasts `FleetSnapshotEvent` every 3s over WebSocket
+- `events.py` — added `VesselSnapshot` + `FleetSnapshotEvent` models
+
+### Frontend
+- `types.ts` — added `FleetSnapshotEvent`, `VesselSnapshot`, updated `AgentEvent` union
+- `useAgentSocket.ts` — handles `fleet_snapshot`: updates vessel map state, does NOT push to log panel
+- `useAgentSocket.ts` — updates vessel risk level on `observation` events
+- `components/MapView.tsx` — react-leaflet map with CartoDB dark tiles
+  - 11 vessel `CircleMarker` components, color-coded by risk level (green/amber/red)
+  - 4 port markers (Jebel Ali, Singapore, Colombo, Salalah) with permanent labels
+  - Highlighted port turns red when a scenario fires (auto-clears after 30s)
+  - Tooltips: vessel name, cargo type, next port, risk level
+  - `FitBoundsOnLoad` fits all vessels into view on first data
+- `App.tsx` — MapView wired with live vessel state + highlightedPort
+- `index.css` — dark Leaflet tooltip styles
+
+### Smoke tests (run these now)
+- [ ] `uvicorn main:app --reload` — check WS broadcasts fleet_snapshot every 3s
+- [ ] `npm run dev` — map renders with 11 vessel dots, vessels animate toward ports
+- [ ] Click "Storm · Jebel Ali" — Jebel Ali port marker turns red on map
 
 ---
 

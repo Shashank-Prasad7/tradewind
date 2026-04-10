@@ -191,7 +191,9 @@ def _step_toward(lat: float, lng: float, target_lat: float, target_lng: float, s
 
 
 async def run_simulator(broadcast: Callable[[dict], Awaitable[None]]) -> None:
-    """Moves vessels every 3s and broadcasts position-update heartbeats."""
+    """Moves vessels every 3s and broadcasts a fleet snapshot for the map."""
+    from events import FleetSnapshotEvent, VesselSnapshot, ShipmentPosition
+
     while True:
         await asyncio.sleep(3)
         for vessel in _fleet.values():
@@ -201,3 +203,19 @@ async def run_simulator(broadcast: Callable[[dict], Awaitable[None]]) -> None:
                 pos = vessel["position"]
                 new_lat, new_lng = _step_toward(pos["lat"], pos["lng"], tlat, tlng)
                 vessel["position"] = {"lat": round(new_lat, 5), "lng": round(new_lng, 5)}
+
+        snapshot = FleetSnapshotEvent(
+            vessels=[
+                VesselSnapshot(
+                    shipment_id=v["shipment_id"],
+                    vessel_name=v["vessel_name"],
+                    position=ShipmentPosition(**v["position"]),
+                    risk_level=v.get("risk_level", "nominal"),
+                    cargo_type=v["cargo_type"],
+                    next_port=v["next_port"],
+                    current_port=v.get("current_port"),
+                )
+                for v in _fleet.values()
+            ]
+        )
+        await broadcast(snapshot.model_dump())

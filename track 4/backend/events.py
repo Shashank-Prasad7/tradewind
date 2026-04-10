@@ -139,3 +139,20 @@ class SystemEvent(BaseEvent):
     type: Literal["system"] = "system"
     status: Literal["agent_start", "agent_end", "fallback_activated", "reconnected"]
     message: str
+
+
+# ── Fleet snapshot (emitted every 3s by simulator for map updates) ─────────────
+
+class VesselSnapshot(BaseModel):
+    shipment_id: str
+    vessel_name: str
+    position: ShipmentPosition
+    risk_level: str
+    cargo_type: str
+    next_port: str
+    current_port: Optional[str] = None
+
+
+class FleetSnapshotEvent(BaseEvent):
+    type: Literal["fleet_snapshot"] = "fleet_snapshot"
+    vessels: list[VesselSnapshot]

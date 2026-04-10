@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Activity, AlertTriangle, Wifi, WifiOff, Loader2 } from 'lucide-react'
 import { useAgentSocket } from './hooks/useAgentSocket'
+import { MapView } from './components/MapView'
 import type { AgentEvent, HeartbeatEvent } from './types'
 
 // ── Scenario config ───────────────────────────────────────────────────────────
@@ -36,6 +38,13 @@ const SCENARIO_COLORS: Record<string, string> = {
   blue:   'bg-blue-950/50   text-blue-300   border-blue-800   hover:bg-blue-900/60',
   purple: 'bg-purple-950/50 text-purple-300 border-purple-800 hover:bg-purple-900/60',
   red:    'bg-red-950/50    text-red-300    border-red-800    hover:bg-red-900/60',
+}
+
+const SCENARIO_PORT: Record<string, string> = {
+  storm_jebel_ali:       'AEJEA',
+  customs_hold_singapore: 'SGSIN',
+  cascade_colombo:       'LKCMB',
+  carrier_capacity_drop: '',
 }
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -198,13 +207,19 @@ function EventRow({ event }: { event: AgentEvent }) {
 // ── Main App ──────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { events, status, isAgentRunning } = useAgentSocket()
+  const { events, vessels, status, isAgentRunning } = useAgentSocket()
+  const [highlightedPort, setHighlightedPort] = useState<string | undefined>()
 
   const latestHeartbeat = [...events].reverse().find(e => e.type === 'heartbeat') as HeartbeatEvent | undefined
   const atRisk = latestHeartbeat?.at_risk_count ?? 0
   const activeVessels = latestHeartbeat?.active_shipments ?? 11
 
   async function triggerScenario(scenarioId: string) {
+    const port = SCENARIO_PORT[scenarioId]
+    setHighlightedPort(port || undefined)
+    // Clear port highlight after 30s (agent session max)
+    if (port) setTimeout(() => setHighlightedPort(undefined), 30_000)
+
     await fetch('http://localhost:8000/events/trigger', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -254,13 +269,9 @@ export default function App() {
       {/* ── Main panels ── */}
       <div className="flex flex-1 min-h-0">
 
-        {/* Map panel — filled in H2-H4 */}
-        <div className="flex-1 bg-gray-900 relative min-w-0">
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-gray-700">
-            <Activity size={40} strokeWidth={1} />
-            <p className="text-sm">Map loads in H2–H4 milestone</p>
-            <p className="text-xs">react-leaflet · 11 vessel markers</p>
-          </div>
+        {/* Map panel */}
+        <div className="flex-1 relative min-w-0">
+          <MapView vessels={vessels} highlightedPort={highlightedPort} />
         </div>
 
         {/* Log panel */}
