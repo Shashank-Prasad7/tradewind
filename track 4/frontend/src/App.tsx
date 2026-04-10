@@ -96,8 +96,10 @@ export default function App() {
     setActiveScenarioId(undefined)
   }
 
+  const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+
   async function triggerCounterfactual(shipmentId: string, delayHours: number) {
-    await fetch('http://localhost:8000/events/counterfactual', {
+    await fetch(`${API}/events/counterfactual`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ shipment_id: shipmentId, delay_hours: delayHours }),
@@ -109,7 +111,7 @@ export default function App() {
     setHighlightedPort(port || undefined)
     setActiveScenarioId(scenarioId)
     if (port) setTimeout(() => setHighlightedPort(undefined), 30_000)
-    await fetch('http://localhost:8000/events/trigger', {
+    await fetch(`${API}/events/trigger`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scenario: scenarioId }),
