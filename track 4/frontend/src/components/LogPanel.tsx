@@ -142,7 +142,7 @@ function DecisionCard({
         <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
           <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${pct}%` }} />
         </div>
-        <span className="text-[11px] font-mono text-gray-400 w-8 text-right">{pct}%</span>
+        <span className="proj-number text-gray-400 w-8 text-right">{pct}%</span>
       </div>
 
       {/* Reasoning */}
@@ -177,12 +177,12 @@ function DecisionCard({
 
       {/* Cost estimates */}
       {(event.estimated_cost_usd != null || event.estimated_time_saving_hours != null) && (
-        <div className="flex gap-4 text-[11px] text-gray-500">
+        <div className="flex gap-4 proj-label text-gray-500">
           {event.estimated_cost_usd != null && (
-            <span>Cost: <span className="text-gray-300 font-mono">${event.estimated_cost_usd.toLocaleString()}</span></span>
+            <span>Cost: <span className="proj-number text-gray-300">${event.estimated_cost_usd.toLocaleString()}</span></span>
           )}
           {event.estimated_time_saving_hours != null && (
-            <span>Saves: <span className="text-gray-300 font-mono">{event.estimated_time_saving_hours}h</span></span>
+            <span>Saves: <span className="proj-number text-gray-300">{event.estimated_time_saving_hours}h</span></span>
           )}
         </div>
       )}
@@ -204,14 +204,14 @@ function CounterfactualCard({ event }: { event: CounterfactualEvent }) {
     <div className="px-3 py-2.5 rounded border border-red-900/50 bg-red-950/20 space-y-2 animate-slide-in">
       <div className="text-[11px] font-bold text-red-400 uppercase tracking-wider">Cost of Inaction</div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px]">
-        <span className="text-gray-500">Additional delay</span>
-        <span className="text-red-300 font-mono">+{p.additional_delay_hours}h</span>
-        <span className="text-gray-500">Penalty estimate</span>
-        <span className="text-red-300 font-mono">${p.estimated_penalty_usd.toLocaleString()}</span>
-        <span className="text-gray-500">SLA breaches</span>
-        <span className="text-red-300 font-mono">{p.sla_breaches}</span>
-        <span className="text-gray-500">Cascade vessels</span>
-        <span className="text-red-300 font-mono">{p.cascade_affected_shipments}</span>
+        <span className="text-gray-500 proj-label">Additional delay</span>
+        <span className="proj-number text-red-300">+{p.additional_delay_hours}h</span>
+        <span className="text-gray-500 proj-label">Penalty estimate</span>
+        <span className="proj-number text-red-300">${p.estimated_penalty_usd.toLocaleString()}</span>
+        <span className="text-gray-500 proj-label">SLA breaches</span>
+        <span className="proj-number text-red-300">{p.sla_breaches}</span>
+        <span className="text-gray-500 proj-label">Cascade vessels</span>
+        <span className="proj-number text-red-300">{p.cascade_affected_shipments}</span>
       </div>
       {p.cargo_at_risk.map((c, i) => (
         <div key={i} className="text-[10px] text-red-600">

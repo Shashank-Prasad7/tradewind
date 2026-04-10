@@ -94,7 +94,7 @@ export default function App() {
       <header className="h-11 bg-gray-900 border-b border-gray-800 flex items-center px-4 gap-4 shrink-0 z-10">
         <div className="flex items-center gap-2">
           <Activity size={16} className="text-emerald-400" />
-          <span className="text-sm font-bold tracking-widest text-gray-100 uppercase">
+          <span className="font-display text-sm font-bold text-gray-100 uppercase">
             Supply Chain Control Tower
           </span>
         </div>
@@ -102,11 +102,11 @@ export default function App() {
         <div className="h-4 w-px bg-gray-700" />
 
         <div className="flex items-center gap-4 text-xs text-gray-400">
-          <span><span className="text-gray-200 font-semibold">{activeVessels}</span> vessels</span>
+          <span><span className="proj-number text-gray-200">{activeVessels}</span> <span className="proj-label">vessels</span></span>
           {atRisk > 0 ? (
             <span className="flex items-center gap-1 text-amber-400">
               <AlertTriangle size={11} />
-              <span className="font-semibold">{atRisk}</span> at risk
+              <span className="proj-number">{atRisk}</span> <span className="proj-label">at risk</span>
             </span>
           ) : (
             <span className="text-emerald-600">All nominal</span>

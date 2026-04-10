@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Tooltip, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet'
 import type { VesselState } from '../types'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -82,6 +82,30 @@ export function MapView({ vessels, highlightedPort }: MapViewProps) {
 
       <FitBoundsOnLoad vessels={vessels} />
 
+      {/* ── Route polylines (vessel → next port) ── */}
+      {vesselList.map(vessel => {
+        const port = PORTS.find(p => p.code === vessel.next_port)
+        if (!port) return null
+        const color = RISK_COLOR[vessel.risk_level] ?? RISK_COLOR.nominal
+        const isAt  = vessel.risk_level !== 'nominal'
+        return (
+          <Polyline
+            key={`route-${vessel.shipment_id}`}
+            positions={[
+              [vessel.position.lat, vessel.position.lng],
+              [port.lat, port.lng],
+            ]}
+            pathOptions={{
+              color,
+              weight:    isAt ? 1.5 : 1,
+              opacity:   isAt ? 0.28 : 0.13,
+              dashArray: '5 10',
+              className: isAt ? `route-line-${vessel.risk_level}` : '',
+            }}
+          />
+        )
+      })}
+
       {/* ── Port markers ── */}
       {PORTS.map(port => {
         const isHot = highlightedPort === port.code
@@ -104,11 +128,27 @@ export function MapView({ vessels, highlightedPort }: MapViewProps) {
         )
       })}
 
+      {/* ── Port hot ring (animated outer ring when scenario fires) ── */}
+      {PORTS.filter(p => p.code === highlightedPort).map(port => (
+        <CircleMarker
+          key={`${port.code}-ring`}
+          center={[port.lat, port.lng]}
+          radius={24}
+          pathOptions={{
+            color:       '#ef4444',
+            fillColor:   'transparent',
+            fillOpacity: 0,
+            weight:      1.5,
+            className:   'port-hot-ring',
+          }}
+        />
+      ))}
+
       {/* ── Vessel markers ── */}
       {vesselList.map(vessel => {
-        const color   = RISK_COLOR[vessel.risk_level] ?? RISK_COLOR.nominal
-        const radius  = vessel.risk_level === 'critical' ? 10 : vessel.risk_level === 'warning' ? 8 : 6
-        const icon    = CARGO_ICON[vessel.cargo_type] ?? '🚢'
+        const color  = RISK_COLOR[vessel.risk_level] ?? RISK_COLOR.nominal
+        const radius = vessel.risk_level === 'critical' ? 10 : vessel.risk_level === 'warning' ? 8 : 6
+        const icon   = CARGO_ICON[vessel.cargo_type] ?? '🚢'
 
         return (
           <CircleMarker
@@ -117,9 +157,11 @@ export function MapView({ vessels, highlightedPort }: MapViewProps) {
             radius={radius}
             pathOptions={{
               color,
-              fillColor: color,
+              fillColor:   color,
               fillOpacity: vessel.risk_level === 'nominal' ? 0.75 : 0.9,
-              weight: vessel.risk_level !== 'nominal' ? 2.5 : 1.5,
+              weight:      vessel.risk_level !== 'nominal' ? 2.5 : 1.5,
+              className:   vessel.risk_level === 'critical' ? 'vessel-critical'
+                         : vessel.risk_level === 'warning'  ? 'vessel-warning' : '',
             }}
           >
             <Tooltip direction="top" offset={[0, -10]}>
