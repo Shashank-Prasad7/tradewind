@@ -83,6 +83,12 @@ export default function App() {
   const atRisk       = latestHeartbeat?.at_risk_count ?? 0
   const activeVessels = latestHeartbeat?.active_shipments ?? 11
 
+  function handleClear() {
+    clearEvents()
+    setHighlightedPort(undefined)
+    setActiveScenarioId(undefined)
+  }
+
   async function triggerCounterfactual(shipmentId: string, delayHours: number) {
     await fetch('http://localhost:8000/events/counterfactual', {
       method: 'POST',
@@ -173,7 +179,7 @@ export default function App() {
           activeVessels={activeVessels}
           isAgentRunning={isAgentRunning}
           onCounterfactual={triggerCounterfactual}
-          onClear={clearEvents}
+          onClear={handleClear}
         />
       </div>
 
