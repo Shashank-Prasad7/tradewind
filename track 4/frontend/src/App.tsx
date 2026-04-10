@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Activity, AlertTriangle, Wifi, WifiOff, Loader2 } from 'lucide-react'
+import { Activity, AlertTriangle, Wifi, WifiOff, Loader2, Clock, AlertOctagon } from 'lucide-react'
 import { useAgentSocket } from './hooks/useAgentSocket'
 import { MapView } from './components/MapView'
 import { LogPanel } from './components/LogPanel'
@@ -35,10 +35,24 @@ const SCENARIOS = [
 ] as const
 
 const SCENARIO_COLORS: Record<string, string> = {
-  orange: 'bg-orange-950/50 text-orange-300 border-orange-800 hover:bg-orange-900/60',
-  blue:   'bg-blue-950/50   text-blue-300   border-blue-800   hover:bg-blue-900/60',
-  purple: 'bg-purple-950/50 text-purple-300 border-purple-800 hover:bg-purple-900/60',
-  red:    'bg-red-950/50    text-red-300    border-red-800    hover:bg-red-900/60',
+  orange: 'border-orange-800 hover:bg-orange-900/60',
+  blue:   'border-blue-800   hover:bg-blue-900/60',
+  purple: 'border-purple-800 hover:bg-purple-900/60',
+  red:    'border-red-800    hover:bg-red-900/60',
+}
+
+const SCENARIO_BG: Record<string, string> = {
+  orange: 'bg-orange-950/50 text-orange-300',
+  blue:   'bg-blue-950/50   text-blue-300',
+  purple: 'bg-purple-950/50 text-purple-300',
+  red:    'bg-red-950/50    text-red-300',
+}
+
+const SCENARIO_ACTIVE: Record<string, string> = {
+  orange: 'bg-orange-900/80 text-orange-200 ring-1 ring-orange-600/60',
+  blue:   'bg-blue-900/80   text-blue-200   ring-1 ring-blue-600/60',
+  purple: 'bg-purple-900/80 text-purple-200 ring-1 ring-purple-600/60',
+  red:    'bg-red-900/80    text-red-200    ring-1 ring-red-600/60',
 }
 
 const SCENARIO_PORT: Record<string, string> = {
@@ -61,11 +75,12 @@ function StatusBadge({ status }: { status: string }) {
 // ── App ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { events, vessels, status, isAgentRunning } = useAgentSocket()
-  const [highlightedPort, setHighlightedPort] = useState<string | undefined>()
+  const { events, vessels, status, isAgentRunning, systemStatus, lastAgentRunAt, clearEvents } = useAgentSocket()
+  const [highlightedPort,   setHighlightedPort]   = useState<string | undefined>()
+  const [activeScenarioId,  setActiveScenarioId]  = useState<string | undefined>()
 
   const latestHeartbeat = [...events].reverse().find(e => e.type === 'heartbeat') as HeartbeatEvent | undefined
-  const atRisk = latestHeartbeat?.at_risk_count ?? 0
+  const atRisk       = latestHeartbeat?.at_risk_count ?? 0
   const activeVessels = latestHeartbeat?.active_shipments ?? 11
 
   async function triggerCounterfactual(shipmentId: string, delayHours: number) {
@@ -79,6 +94,7 @@ export default function App() {
   async function triggerScenario(scenarioId: string) {
     const port = SCENARIO_PORT[scenarioId]
     setHighlightedPort(port || undefined)
+    setActiveScenarioId(scenarioId)
     if (port) setTimeout(() => setHighlightedPort(undefined), 30_000)
     await fetch('http://localhost:8000/events/trigger', {
       method: 'POST',
@@ -87,10 +103,22 @@ export default function App() {
     })
   }
 
+  const isFallback = systemStatus === 'fallback'
+
   return (
     <div className="h-screen w-screen bg-gray-950 text-gray-100 flex flex-col overflow-hidden select-none">
 
-      {/* Header */}
+      {/* ── Fallback banner ── */}
+      {isFallback && (
+        <div className="shrink-0 h-7 bg-amber-950/80 border-b border-amber-800/60 flex items-center justify-center gap-2 animate-fade-in">
+          <AlertOctagon size={12} className="text-amber-400" />
+          <span className="text-[11px] font-semibold text-amber-400 tracking-wider uppercase">
+            Fallback Mode Active — Claude API unreachable · Rule-based decisions in effect
+          </span>
+        </div>
+      )}
+
+      {/* ── Header ── */}
       <header className="h-11 bg-gray-900 border-b border-gray-800 flex items-center px-4 gap-4 shrink-0 z-10">
         <div className="flex items-center gap-2">
           <Activity size={16} className="text-emerald-400" />
@@ -102,19 +130,29 @@ export default function App() {
         <div className="h-4 w-px bg-gray-700" />
 
         <div className="flex items-center gap-4 text-xs text-gray-400">
-          <span><span className="proj-number text-gray-200">{activeVessels}</span> <span className="proj-label">vessels</span></span>
+          <span>
+            <span className="proj-number text-gray-200">{activeVessels}</span>
+            <span className="proj-label ml-1">vessels</span>
+          </span>
           {atRisk > 0 ? (
             <span className="flex items-center gap-1 text-amber-400">
               <AlertTriangle size={11} />
-              <span className="proj-number">{atRisk}</span> <span className="proj-label">at risk</span>
+              <span className="proj-number">{atRisk}</span>
+              <span className="proj-label ml-0.5">at risk</span>
             </span>
           ) : (
-            <span className="text-emerald-600">All nominal</span>
+            <span className="text-emerald-600 proj-label">All nominal</span>
           )}
           {isAgentRunning && (
-            <span className="flex items-center gap-1.5 text-sky-400">
+            <span className="flex items-center gap-1.5 text-sky-400 proj-label">
               <Loader2 size={11} className="animate-spin" />
               Agent running
+            </span>
+          )}
+          {lastAgentRunAt && !isAgentRunning && (
+            <span className="flex items-center gap-1 text-gray-600 proj-caption">
+              <Clock size={10} />
+              {new Date(lastAgentRunAt).toLocaleTimeString()}
             </span>
           )}
         </div>
@@ -124,7 +162,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main panels */}
+      {/* ── Main panels ── */}
       <div className="flex flex-1 min-h-0">
         <div className="flex-1 relative min-w-0">
           <MapView vessels={vessels} highlightedPort={highlightedPort} />
@@ -133,27 +171,35 @@ export default function App() {
         <LogPanel
           events={events}
           activeVessels={activeVessels}
+          isAgentRunning={isAgentRunning}
           onCounterfactual={triggerCounterfactual}
+          onClear={clearEvents}
         />
       </div>
 
-      {/* Scenario triggers */}
+      {/* ── Scenario triggers ── */}
       <div className="h-14 bg-gray-900 border-t border-gray-800 flex items-center gap-2.5 px-4 shrink-0">
         <span className="text-[10px] font-bold text-gray-600 tracking-widest uppercase mr-1">Simulate</span>
-        {SCENARIOS.map(s => (
-          <button
-            key={s.id}
-            onClick={() => triggerScenario(s.id)}
-            disabled={isAgentRunning}
-            title={s.description}
-            className={`px-3 py-1.5 rounded border text-[11px] font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${SCENARIO_COLORS[s.color]}`}
-          >
-            {isAgentRunning
-              ? <span className="flex items-center gap-1.5"><Loader2 size={10} className="animate-spin" />{s.label}</span>
-              : s.label
-            }
-          </button>
-        ))}
+        {SCENARIOS.map(s => {
+          const isActive = activeScenarioId === s.id && isAgentRunning
+          const colorClass = isActive
+            ? SCENARIO_ACTIVE[s.color]
+            : `${SCENARIO_BG[s.color]} ${SCENARIO_COLORS[s.color]}`
+          return (
+            <button
+              key={s.id}
+              onClick={() => triggerScenario(s.id)}
+              disabled={isAgentRunning}
+              title={s.description}
+              className={`px-3 py-1.5 rounded border text-[11px] font-semibold transition-all disabled:cursor-not-allowed ${colorClass} ${isAgentRunning && !isActive ? 'opacity-40' : ''}`}
+            >
+              {isActive
+                ? <span className="flex items-center gap-1.5"><Loader2 size={10} className="animate-spin" />{s.label}</span>
+                : s.label
+              }
+            </button>
+          )
+        })}
       </div>
 
     </div>

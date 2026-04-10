@@ -126,6 +126,6 @@ html, body, #root {
 .animate-fade-in { animation: fadeIn 0.3s ease-in; }
 
 /* ── Projector safety — minimum readable sizes ─────────────────────────────── */
-.proj-number  { font-size: 15px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
-.proj-label   { font-size: 12px; }
+.proj-number  { font-size: 18px; font-weight: 700; font-family: 'JetBrains Mono', monospace; line-height: 1.1; }
+.proj-label   { font-size: 13px; }
 .proj-caption { font-size: 11px; }

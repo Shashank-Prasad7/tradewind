@@ -4,26 +4,30 @@ import type { AgentEvent, FleetSnapshotEvent, VesselState } from '../types'
 export type SocketStatus = 'connecting' | 'connected' | 'disconnected' | 'reconnecting'
 
 export interface UseAgentSocketReturn {
-  events: AgentEvent[]
-  vessels: Record<string, VesselState>
-  status: SocketStatus
-  isAgentRunning: boolean
-  clearEvents: () => void
+  events:          AgentEvent[]
+  vessels:         Record<string, VesselState>
+  status:          SocketStatus
+  isAgentRunning:  boolean
+  systemStatus:    'ok' | 'fallback'
+  lastAgentRunAt:  string | undefined
+  clearEvents:     () => void
 }
 
-const WS_URL = 'ws://localhost:8000/ws'
+const WS_URL    = 'ws://localhost:8000/ws'
 const MAX_RETRIES = 5
-const MAX_EVENTS = 500
+const MAX_EVENTS  = 500
 
 export function useAgentSocket(): UseAgentSocketReturn {
-  const [events, setEvents] = useState<AgentEvent[]>([])
-  const [vessels, setVessels] = useState<Record<string, VesselState>>({})
-  const [status, setStatus] = useState<SocketStatus>('connecting')
+  const [events,         setEvents]         = useState<AgentEvent[]>([])
+  const [vessels,        setVessels]        = useState<Record<string, VesselState>>({})
+  const [status,         setStatus]         = useState<SocketStatus>('connecting')
   const [isAgentRunning, setIsAgentRunning] = useState(false)
+  const [systemStatus,   setSystemStatus]   = useState<'ok' | 'fallback'>('ok')
+  const [lastAgentRunAt, setLastAgentRunAt] = useState<string | undefined>(undefined)
 
-  const wsRef = useRef<WebSocket | null>(null)
-  const retriesRef = useRef(0)
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wsRef          = useRef<WebSocket | null>(null)
+  const retriesRef     = useRef(0)
+  const retryTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return
@@ -41,12 +45,26 @@ export function useAgentSocket(): UseAgentSocketReturn {
       try {
         const event = JSON.parse(e.data as string) as AgentEvent
 
-        // Track agent running state
+        // Track agent running state + fallback detection
         if (event.type === 'system') {
-          if (event.status === 'agent_start') setIsAgentRunning(true)
-          if (event.status === 'agent_end' || event.status === 'fallback_activated') {
-            setIsAgentRunning(false)
+          if (event.status === 'agent_start') {
+            setIsAgentRunning(true)
           }
+          if (event.status === 'agent_end') {
+            setIsAgentRunning(false)
+            setLastAgentRunAt(event.timestamp)
+          }
+          if (event.status === 'fallback_activated') {
+            setIsAgentRunning(false)
+            setSystemStatus('fallback')
+            setLastAgentRunAt(event.timestamp)
+          }
+        }
+
+        // Heartbeat: sync system_status
+        if (event.type === 'heartbeat') {
+          if (event.system_status === 'fallback') setSystemStatus('fallback')
+          else                                    setSystemStatus('ok')
         }
 
         // Fleet snapshot: update map positions, do NOT push to log panel
@@ -57,13 +75,13 @@ export function useAgentSocket(): UseAgentSocketReturn {
               snap.vessels.map(v => [
                 v.shipment_id,
                 {
-                  shipment_id: v.shipment_id,
-                  vessel_name: v.vessel_name,
-                  position: v.position,
-                  next_port: v.next_port,
+                  shipment_id:  v.shipment_id,
+                  vessel_name:  v.vessel_name,
+                  position:     v.position,
+                  next_port:    v.next_port,
                   current_port: v.current_port,
-                  cargo_type: v.cargo_type,
-                  risk_level: v.risk_level as VesselState['risk_level'],
+                  cargo_type:   v.cargo_type,
+                  risk_level:   v.risk_level as VesselState['risk_level'],
                   eta_original: '',
                 },
               ])
@@ -108,9 +126,7 @@ export function useAgentSocket(): UseAgentSocketReturn {
       }
     }
 
-    ws.onerror = () => {
-      ws.close()
-    }
+    ws.onerror = () => { ws.close() }
   }, [])
 
   useEffect(() => {
@@ -123,5 +139,5 @@ export function useAgentSocket(): UseAgentSocketReturn {
 
   const clearEvents = useCallback(() => setEvents([]), [])
 
-  return { events, vessels, status, isAgentRunning, clearEvents }
+  return { events, vessels, status, isAgentRunning, systemStatus, lastAgentRunAt, clearEvents }
 }

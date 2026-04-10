@@ -1,25 +1,37 @@
 import { useEffect, useRef } from 'react'
+import { Trash2 } from 'lucide-react'
 import type {
   AgentEvent, HeartbeatEvent, ObservationEvent,
   ToolCallEvent, ToolResultEvent, ExplanationEvent,
   DecisionEvent, CounterfactualEvent, SystemEvent,
 } from '../types'
 
+// ── Shared timestamp helper ───────────────────────────────────────────────────
+
+function Ts({ timestamp }: { timestamp: string }) {
+  return (
+    <span className="ml-auto shrink-0 font-mono text-[10px] text-gray-800 tabular-nums pl-2">
+      {new Date(timestamp).toLocaleTimeString()}
+    </span>
+  )
+}
+
 // ── Individual event renderers ────────────────────────────────────────────────
 
 function HeartbeatRow({ event }: { event: HeartbeatEvent }) {
   const hot = event.brewing_risks.length > 0
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 text-[11px] text-gray-600 border-b border-gray-900/60">
-      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${hot ? 'bg-amber-500 animate-pulse' : 'bg-emerald-700 animate-pulse-slow'}`} />
+    <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-600 border-b border-gray-900/60">
+      <span className={`w-2 h-2 rounded-full shrink-0 ${hot ? 'bg-amber-500 animate-pulse' : 'bg-emerald-800 animate-pulse'}`} />
       <span className={hot ? 'text-amber-500' : ''}>
-        {event.active_shipments} vessels · {event.at_risk_count > 0 ? `${event.at_risk_count} at risk` : 'all nominal'}
+        {event.active_shipments} vessels
+        {event.at_risk_count > 0 ? ` · ${event.at_risk_count} at risk` : ' · all nominal'}
         {hot && ` · ⚠ ${event.brewing_risks[0].vessel_name}`}
       </span>
       {event.system_status === 'fallback' && (
-        <span className="ml-auto text-amber-600 font-semibold">FALLBACK</span>
+        <span className="text-amber-600 font-semibold text-[10px]">FALLBACK</span>
       )}
-      <span className="ml-auto text-gray-800 font-mono">{new Date(event.timestamp).toLocaleTimeString()}</span>
+      <Ts timestamp={event.timestamp} />
     </div>
   )
 }
@@ -32,9 +44,10 @@ function SystemRow({ event }: { event: SystemEvent }) {
     reconnected:        'text-emerald-400 border-emerald-900/40',
   }
   return (
-    <div className={`px-3 py-1.5 rounded border text-[11px] animate-slide-in ${styles[event.status] ?? 'text-gray-500 border-gray-800'}`}>
+    <div className={`px-3 py-1.5 rounded border text-xs animate-slide-in flex items-center gap-2 ${styles[event.status] ?? 'text-gray-500 border-gray-800'}`}>
       <span className="font-mono opacity-60">[SYS]</span>
-      <span className="ml-2">{event.message}</span>
+      <span className="flex-1">{event.message}</span>
+      <Ts timestamp={event.timestamp} />
     </div>
   )
 }
@@ -47,15 +60,19 @@ function ObservationCard({ event }: { event: ObservationEvent }) {
   }
   const icons = { critical: '🔴', warning: '🟡', info: '⚪' }
   return (
-    <div className={`px-3 py-2 rounded border text-xs animate-slide-in ${styles[event.severity]}`}>
+    <div className={`px-3 py-2 rounded border text-sm animate-slide-in ${styles[event.severity]}`}>
       <div className="flex items-center gap-1.5 font-semibold">
         <span>{icons[event.severity]}</span>
         <span>{event.vessel_name}</span>
-        <span className="text-[10px] font-mono opacity-50 ml-auto">{event.shipment_id}</span>
+        <span className="text-[10px] font-mono opacity-50 ml-1">{event.shipment_id}</span>
+        <Ts timestamp={event.timestamp} />
       </div>
-      <div className="mt-0.5 opacity-80">{event.message}</div>
+      <div className="mt-1 opacity-80 text-xs leading-relaxed">{event.message}</div>
       {event.data.delay_hours != null && (
-        <div className="mt-0.5 font-mono text-amber-400">+{event.data.delay_hours}h delay</div>
+        <div className="mt-1 font-mono text-amber-400">
+          <span className="proj-number">+{event.data.delay_hours}h</span>
+          <span className="proj-label ml-1 text-amber-600">delay</span>
+        </div>
       )}
     </div>
   )
@@ -65,29 +82,35 @@ function ToolCallRow({ event }: { event: ToolCallEvent }) {
   const argStr = JSON.stringify(event.arguments)
   const preview = argStr.length > 72 ? argStr.slice(0, 72) + '…' : argStr
   return (
-    <div className="px-3 py-1.5 rounded border border-indigo-900/40 bg-indigo-950/15 text-[11px] animate-slide-in">
+    <div className="px-3 py-1.5 rounded border border-indigo-900/40 bg-indigo-950/15 text-xs animate-slide-in flex items-center gap-1">
       <span className="text-indigo-500 font-mono">▶ </span>
       <span className="text-indigo-300 font-semibold">{event.tool_name}</span>
-      <span className="text-indigo-700 ml-2 font-mono">{preview}</span>
+      <span className="text-indigo-700 ml-1 font-mono text-[11px] truncate flex-1">{preview}</span>
+      <Ts timestamp={event.timestamp} />
     </div>
   )
 }
 
 function ToolResultRow({ event }: { event: ToolResultEvent }) {
   return (
-    <div className="px-3 py-1 rounded border border-indigo-900/20 bg-indigo-950/8 text-[11px] animate-slide-in flex items-center gap-2">
+    <div className="px-3 py-1 rounded border border-indigo-900/20 bg-indigo-950/8 text-xs animate-slide-in flex items-center gap-2">
       <span className={`font-mono ${event.success ? 'text-emerald-600' : 'text-red-500'}`}>
         {event.success ? '✓' : '✗'}
       </span>
       <span className="text-indigo-600">{event.tool_name}</span>
       <span className="text-gray-700 font-mono">{event.duration_ms}ms</span>
+      <Ts timestamp={event.timestamp} />
     </div>
   )
 }
 
 function ExplanationBlock({ event }: { event: ExplanationEvent }) {
   return (
-    <div className="px-3 py-2.5 rounded border border-gray-700/60 bg-gray-900/50 text-xs text-gray-300 leading-relaxed animate-slide-in">
+    <div className="px-3 py-2.5 rounded border border-gray-700/60 bg-gray-900/50 text-sm text-gray-300 leading-relaxed animate-slide-in">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-[10px] font-mono text-gray-600 uppercase tracking-wider">Reasoning</span>
+        <Ts timestamp={event.timestamp} />
+      </div>
       {event.text}
     </div>
   )
@@ -124,35 +147,41 @@ function DecisionCard({
 
       {/* Header */}
       <div className="flex items-start gap-2">
-        <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${urgencyDot[event.urgency] ?? 'bg-gray-500'}`} />
+        <span className={`mt-1 w-2.5 h-2.5 rounded-full shrink-0 ${urgencyDot[event.urgency] ?? 'bg-gray-500'}`} />
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-bold text-emerald-300 leading-snug">{event.recommended_action}</div>
+          <div className="text-sm font-bold text-emerald-300 leading-snug">{event.recommended_action}</div>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className={`text-[10px] px-1.5 py-px rounded border font-semibold ${actionBadge[event.action_type] ?? 'bg-gray-800 text-gray-400 border-gray-700'}`}>
+            <span className={`text-[11px] px-1.5 py-px rounded border font-semibold ${actionBadge[event.action_type] ?? 'bg-gray-800 text-gray-400 border-gray-700'}`}>
               {event.action_type.replace('_', ' ')}
             </span>
-            <span className="text-[10px] text-gray-600">{event.vessel_name}</span>
+            <span className="text-[11px] text-gray-500">{event.vessel_name}</span>
           </div>
         </div>
-        <span className="text-[10px] font-mono text-gray-600 shrink-0 mt-0.5">{event.urgency}</span>
+        <div className="flex flex-col items-end gap-0.5 shrink-0">
+          <span className="text-[11px] font-mono text-gray-600">{event.urgency}</span>
+          <Ts timestamp={event.timestamp} />
+        </div>
       </div>
 
       {/* Confidence */}
       <div className="flex items-center gap-2">
-        <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${pct}%` }} />
+        <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${barColor}`}
+            style={{ width: `${pct}%` }}
+          />
         </div>
-        <span className="proj-number text-gray-400 w-8 text-right">{pct}%</span>
+        <span className="proj-number text-gray-300 w-10 text-right">{pct}%</span>
       </div>
 
       {/* Reasoning */}
-      <p className="text-[11px] text-gray-400 leading-relaxed">{event.reasoning_summary}</p>
+      <p className="text-xs text-gray-400 leading-relaxed">{event.reasoning_summary}</p>
 
       {/* Factors */}
       {event.factors_considered.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {event.factors_considered.map(f => (
-            <span key={f} className="text-[10px] px-1.5 py-px rounded bg-gray-800/80 text-gray-500 border border-gray-700/50">
+            <span key={f} className="text-[11px] px-1.5 py-px rounded bg-gray-800/80 text-gray-500 border border-gray-700/50">
               {f}
             </span>
           ))}
@@ -164,8 +193,8 @@ function DecisionCard({
         <div className="space-y-1 pl-2 border-l-2 border-gray-800">
           <div className="text-[10px] text-gray-600 font-semibold uppercase tracking-wider">Alternatives</div>
           {event.alternatives.map((alt, i) => (
-            <div key={i} className="flex gap-2 text-[11px]">
-              <span className="text-gray-600 font-mono w-7 shrink-0">{Math.round(alt.confidence * 100)}%</span>
+            <div key={i} className="flex gap-2 text-xs">
+              <span className="text-gray-500 font-mono w-8 shrink-0 tabular-nums">{Math.round(alt.confidence * 100)}%</span>
               <div>
                 <span className="text-gray-400">{alt.action}</span>
                 <span className="text-gray-600 ml-1">— {alt.tradeoff}</span>
@@ -179,10 +208,10 @@ function DecisionCard({
       {(event.estimated_cost_usd != null || event.estimated_time_saving_hours != null) && (
         <div className="flex gap-4 proj-label text-gray-500">
           {event.estimated_cost_usd != null && (
-            <span>Cost: <span className="proj-number text-gray-300">${event.estimated_cost_usd.toLocaleString()}</span></span>
+            <span>Cost: <span className="proj-number text-gray-200">${event.estimated_cost_usd.toLocaleString()}</span></span>
           )}
           {event.estimated_time_saving_hours != null && (
-            <span>Saves: <span className="proj-number text-gray-300">{event.estimated_time_saving_hours}h</span></span>
+            <span>Saves: <span className="proj-number text-gray-200">{event.estimated_time_saving_hours}h</span></span>
           )}
         </div>
       )}
@@ -190,7 +219,7 @@ function DecisionCard({
       {/* Counterfactual button */}
       <button
         onClick={() => onCounterfactual(event.shipment_id, 48)}
-        className="text-[10px] px-2.5 py-1 rounded border border-red-900/40 text-red-500 hover:bg-red-950/30 hover:text-red-400 transition-colors"
+        className="text-xs px-3 py-1.5 rounded border border-red-900/40 text-red-500 hover:bg-red-950/30 hover:text-red-400 transition-colors font-semibold"
       >
         What if we don't act? →
       </button>
@@ -202,19 +231,22 @@ function CounterfactualCard({ event }: { event: CounterfactualEvent }) {
   const p = event.projected_outcomes
   return (
     <div className="px-3 py-2.5 rounded border border-red-900/50 bg-red-950/20 space-y-2 animate-slide-in">
-      <div className="text-[11px] font-bold text-red-400 uppercase tracking-wider">Cost of Inaction</div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px]">
-        <span className="text-gray-500 proj-label">Additional delay</span>
+      <div className="flex items-center gap-2">
+        <div className="text-xs font-bold text-red-400 uppercase tracking-wider">Cost of Inaction</div>
+        <Ts timestamp={event.timestamp} />
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        <span className="text-gray-500">Additional delay</span>
         <span className="proj-number text-red-300">+{p.additional_delay_hours}h</span>
-        <span className="text-gray-500 proj-label">Penalty estimate</span>
+        <span className="text-gray-500">Penalty estimate</span>
         <span className="proj-number text-red-300">${p.estimated_penalty_usd.toLocaleString()}</span>
-        <span className="text-gray-500 proj-label">SLA breaches</span>
+        <span className="text-gray-500">SLA breaches</span>
         <span className="proj-number text-red-300">{p.sla_breaches}</span>
-        <span className="text-gray-500 proj-label">Cascade vessels</span>
+        <span className="text-gray-500">Cascade vessels</span>
         <span className="proj-number text-red-300">{p.cascade_affected_shipments}</span>
       </div>
       {p.cargo_at_risk.map((c, i) => (
-        <div key={i} className="text-[10px] text-red-600">
+        <div key={i} className="text-[11px] text-red-600">
           ⚠ {c.cargo_type.replace(/_/g, ' ')}: {c.risk.slice(0, 80)}
         </div>
       ))}
@@ -226,10 +258,10 @@ function CounterfactualCard({ event }: { event: CounterfactualEvent }) {
 
 function SessionDivider({ timestamp }: { timestamp: string }) {
   return (
-    <div className="flex items-center gap-2 py-1">
+    <div className="flex items-center gap-2 py-1.5">
       <div className="flex-1 h-px bg-gray-800" />
-      <span className="text-[10px] text-gray-700 font-mono shrink-0">
-        {new Date(timestamp).toLocaleTimeString()}
+      <span className="text-[10px] text-gray-700 font-mono shrink-0 tracking-wider">
+        ── {new Date(timestamp).toLocaleTimeString()} ──
       </span>
       <div className="flex-1 h-px bg-gray-800" />
     </div>
@@ -239,12 +271,14 @@ function SessionDivider({ timestamp }: { timestamp: string }) {
 // ── Log Panel ─────────────────────────────────────────────────────────────────
 
 interface LogPanelProps {
-  events: AgentEvent[]
-  activeVessels: number
+  events:          AgentEvent[]
+  activeVessels:   number
+  isAgentRunning:  boolean
   onCounterfactual: (shipmentId: string, delayHours: number) => void
+  onClear:         () => void
 }
 
-export function LogPanel({ events, activeVessels, onCounterfactual }: LogPanelProps) {
+export function LogPanel({ events, activeVessels, isAgentRunning, onCounterfactual, onClear }: LogPanelProps) {
   const endRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom whenever new events arrive
@@ -257,13 +291,12 @@ export function LogPanel({ events, activeVessels, onCounterfactual }: LogPanelPr
   let lastSessionId: string | undefined
 
   for (const event of events) {
-    // Skip heartbeats that would flood the log (show max 1 per 3 events)
     if (event.type === 'heartbeat') {
       items.push({ key: event.id, node: <HeartbeatRow event={event as HeartbeatEvent} /> })
       continue
     }
 
-    // Session divider
+    // Session divider on new session
     if (event.session_id && event.session_id !== lastSessionId && event.type === 'system') {
       if (lastSessionId !== undefined) {
         items.push({
@@ -302,21 +335,45 @@ export function LogPanel({ events, activeVessels, onCounterfactual }: LogPanelPr
     }
   }
 
+  // Dynamic border when agent is running
+  const panelBorder = isAgentRunning
+    ? 'border-l border-sky-800/60 shadow-[inset_1px_0_0_0_rgba(56,189,248,0.12)]'
+    : 'border-l border-gray-800'
+
   return (
-    <div className="w-[440px] border-l border-gray-800 bg-gray-950 flex flex-col shrink-0">
+    <div className={`w-[460px] bg-gray-950 flex flex-col shrink-0 transition-all duration-500 ${panelBorder}`}>
       {/* Header */}
       <div className="h-10 border-b border-gray-800 flex items-center px-4 gap-2 shrink-0">
-        <span className="text-[11px] font-bold text-gray-500 tracking-widest uppercase">Agent Log</span>
-        <span className="ml-auto text-[10px] text-gray-700">{events.length} events</span>
+        <span className="text-xs font-bold text-gray-500 tracking-widest uppercase">Agent Log</span>
+        {isAgentRunning && (
+          <span className="flex items-center gap-1 text-sky-500 text-[10px] animate-pulse">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+            Live
+          </span>
+        )}
+        <span className="ml-auto text-[10px] text-gray-700 tabular-nums">{events.length} events</span>
+        {events.length > 0 && (
+          <button
+            onClick={onClear}
+            title="Clear log"
+            className="ml-2 p-1 rounded text-gray-700 hover:text-gray-400 hover:bg-gray-800 transition-colors"
+          >
+            <Trash2 size={11} />
+          </button>
+        )}
       </div>
 
       {/* Events */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
         {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2 text-gray-700 pb-8">
-            <span className="w-2 h-2 rounded-full bg-emerald-800 animate-pulse" />
-            <p className="text-xs">Monitoring {activeVessels} vessels</p>
-            <p className="text-[10px] text-gray-800">Trigger a scenario to begin</p>
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-700 pb-8">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-800 animate-pulse" />
+              <span className="text-sm font-semibold text-gray-600">Monitoring {activeVessels} vessels</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-800 animate-pulse" />
+            </div>
+            <p className="text-xs text-gray-700">System nominal · All routes clear</p>
+            <p className="text-[11px] text-gray-800 mt-1">Trigger a scenario below to begin</p>
           </div>
         ) : (
           items.map(({ key, node }) => <div key={key}>{node}</div>)
