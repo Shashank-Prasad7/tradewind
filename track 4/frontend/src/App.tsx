@@ -76,7 +76,7 @@ function StatusBadge({ status }: { status: string }) {
 
 // ── Log event renderer (placeholder — full implementation in H4-H6) ────────────
 
-function EventRow({ event }: { event: AgentEvent }) {
+function EventRow({ event, onCounterfactual }: { event: AgentEvent; onCounterfactual: (id: string, hours: number) => void }) {
   const base = 'text-xs px-3 py-2 rounded border animate-slide-in'
 
   if (event.type === 'heartbeat') {
@@ -185,15 +185,51 @@ function EventRow({ event }: { event: AgentEvent }) {
             <span key={f} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400">{f}</span>
           ))}
         </div>
-        {/* Alternatives placeholder — full DecisionCard in H6-H8 */}
+        {/* Alternatives */}
         {event.alternatives.length > 0 && (
-          <div className="text-[11px] text-gray-500 pl-1 border-l border-gray-700 space-y-0.5">
+          <div className="text-[11px] text-gray-500 pl-2 border-l-2 border-gray-800 space-y-1">
+            <div className="text-[10px] text-gray-600 font-semibold uppercase tracking-wider mb-0.5">Alternatives considered</div>
             {event.alternatives.map((alt, i) => (
-              <div key={i}>
-                <span className="text-gray-400">{alt.action}</span>
-                <span className="mx-1">·</span>
-                <span>{alt.tradeoff}</span>
+              <div key={i} className="flex items-start gap-1.5">
+                <span className="text-gray-600 font-mono mt-0.5">{Math.round(alt.confidence * 100)}%</span>
+                <div>
+                  <span className="text-gray-400">{alt.action}</span>
+                  <span className="text-gray-600 ml-1">— {alt.tradeoff}</span>
+                </div>
               </div>
+            ))}
+          </div>
+        )}
+        {/* Counterfactual button */}
+        <button
+          onClick={() => onCounterfactual(event.shipment_id, 48)}
+          className="text-[10px] px-2 py-1 rounded border border-red-900/40 text-red-400 hover:bg-red-950/30 transition-colors w-fit"
+        >
+          What if we don't act? →
+        </button>
+      </div>
+    )
+  }
+
+  if (event.type === 'counterfactual') {
+    const p = event.projected_outcomes
+    return (
+      <div className={`${base} border-red-900/50 bg-red-950/20 space-y-1.5 animate-slide-in`}>
+        <div className="text-[11px] font-bold text-red-400 uppercase tracking-wider">Cost of Inaction</div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+          <span className="text-gray-500">Added delay</span>
+          <span className="text-red-300 font-mono">+{p.additional_delay_hours}h</span>
+          <span className="text-gray-500">Penalty</span>
+          <span className="text-red-300 font-mono">${p.estimated_penalty_usd.toLocaleString()}</span>
+          <span className="text-gray-500">SLA breaches</span>
+          <span className="text-red-300 font-mono">{p.sla_breaches}</span>
+          <span className="text-gray-500">Affected vessels</span>
+          <span className="text-red-300 font-mono">{p.cascade_affected_shipments}</span>
+        </div>
+        {p.cargo_at_risk.length > 0 && (
+          <div className="text-[10px] text-red-600 space-y-0.5">
+            {p.cargo_at_risk.map((c, i) => (
+              <div key={i}>⚠ {c.cargo_type}: {c.risk}</div>
             ))}
           </div>
         )}
@@ -213,6 +249,14 @@ export default function App() {
   const latestHeartbeat = [...events].reverse().find(e => e.type === 'heartbeat') as HeartbeatEvent | undefined
   const atRisk = latestHeartbeat?.at_risk_count ?? 0
   const activeVessels = latestHeartbeat?.active_shipments ?? 11
+
+  async function triggerCounterfactual(shipmentId: string, delayHours: number) {
+    await fetch('http://localhost:8000/events/counterfactual', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shipment_id: shipmentId, delay_hours: delayHours }),
+    })
+  }
 
   async function triggerScenario(scenarioId: string) {
     const port = SCENARIO_PORT[scenarioId]
@@ -289,7 +333,7 @@ export default function App() {
                 <p className="text-[10px] text-gray-800">Trigger a scenario to begin</p>
               </div>
             ) : (
-              events.map(event => <EventRow key={event.id} event={event} />)
+              events.map(event => <EventRow key={event.id} event={event} onCounterfactual={triggerCounterfactual} />)
             )}
           </div>
         </div>

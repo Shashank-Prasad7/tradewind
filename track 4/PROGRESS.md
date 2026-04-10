@@ -56,7 +56,31 @@
 
 ---
 
-## H4–H6 · Agent core + Log Panel · Pending
+## H4–H6 · Agent core + Log Panel ✅
+
+### Backend
+- `scenarios.py` — 4 scenario definitions with incident messages, port overrides, and downstream impact data seeded for non-obvious differentiated decisions
+- `tools.py` — 4 async tool implementations (get_shipment_status, check_port_conditions, get_alternative_routes, assess_downstream_impact) + submit_recommendation dispatcher; scenario-aware mocked data
+- `agent.py` — full Claude tool-use loop (AsyncAnthropic, claude-sonnet-4-6):
+  - Emits ObservationEvent per affected vessel at start
+  - Emits ToolCallEvent + ToolResultEvent for each tool invocation
+  - Emits ExplanationEvent for Claude's text reasoning
+  - Emits DecisionEvent when submit_recommendation tool is called
+  - 30s timeout handled by main.py; API errors fall to rule-based fallback
+  - `run_counterfactual_analysis` implemented (fast, no LLM call)
+  - `_FALLBACK_DECISIONS` covers all 4 scenarios
+
+### Frontend
+- `App.tsx` — DecisionCard now shows alternatives with confidence %, "What if we don't act?" button
+- `App.tsx` — CounterfactualEvent renderer (red "Cost of Inaction" panel)
+- `triggerCounterfactual` wired to POST /events/counterfactual
+
+### Smoke tests (run these now)
+- [ ] `uvicorn main:app --reload` starts without import errors
+- [ ] `POST localhost:8000/events/trigger {"scenario": "storm_jebel_ali"}` → see events flow in WS
+- [ ] Log panel shows: ObservationCard × 3, ToolCallRow, ToolResultRow, ExplanationBlock, DecisionCard × 3
+- [ ] DecisionCard shows confidence bar, alternatives with %, "What if we don't act?" button
+- [ ] Click "What if we don't act?" on a DecisionCard → red panel appears in log
 ## H6–H8 · First full demo run · Pending
 ## H8–H10 · Counterfactual + map animations · Pending
 ## H10–H14 · Frontend polish sprint · Pending
